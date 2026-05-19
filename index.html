@@ -1,457 +1,450 @@
-import { useState, useEffect, useRef } from "react";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trackr — Analytics Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --indigo: #4F46E5;
+    --indigo-light: #EEF2FF;
+    --indigo-mid: #818CF8;
+    --emerald: #10B981;
+    --emerald-light: #D1FAE5;
+    --rose: #F43F5E;
+    --rose-light: #FFE4E6;
+    --amber: #F59E0B;
+    --amber-light: #FEF3C7;
+    --sky: #0EA5E9;
+    --sky-light: #E0F2FE;
+    --surface: #F7F6FF;
+    --white: #FFFFFF;
+    --border: #E5E3F8;
+    --text: #1E1B4B;
+    --muted: #6B7280;
+    --dark: #0F0E1A;
+    --dark2: #181626;
+    --sidebar-w: 240px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--text); display: flex; min-height: 100vh; }
 
-const PALETTE = {
-  indigo: "#4F46E5",
-  indigoLight: "#EEF2FF",
-  indigoMid: "#818CF8",
-  emerald: "#10B981",
-  emeraldLight: "#D1FAE5",
-  rose: "#F43F5E",
-  roseLight: "#FFE4E6",
-  amber: "#F59E0B",
-  amberLight: "#FEF3C7",
-  sky: "#0EA5E9",
-  skyLight: "#E0F2FE",
-  surface: "#F8F7FF",
-  white: "#FFFFFF",
-  border: "#E5E3F8",
-  text: "#1E1B4B",
-  muted: "#6B7280",
-  dark: "#0F0E1A",
-};
+  /* SIDEBAR */
+  #sidebar {
+    width: var(--sidebar-w); background: var(--dark); display: flex; flex-direction: column;
+    padding: 24px 14px; gap: 3px; position: fixed; top: 0; left: 0; height: 100vh;
+    overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05); z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 0 6px; margin-bottom: 24px; }
+  .logo-icon { width: 34px; height: 34px; border-radius: 9px; background: var(--indigo); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 17px; }
+  .logo-name { color: #fff; font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
+  .sidebar-section { font-size: 10px; color: rgba(255,255,255,0.28); letter-spacing: 0.12em; text-transform: uppercase; padding: 0 8px; margin: 12px 0 6px; }
+  .acc-btn {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+    border-radius: 10px; border: none; cursor: pointer; text-align: left; width: 100%;
+    background: transparent; transition: background 0.15s;
+  }
+  .acc-btn:hover { background: rgba(255,255,255,0.06); }
+  .acc-btn.active { background: rgba(79,70,229,0.22); }
+  .acc-avatar { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .acc-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .acc-btn.active .acc-name { color: #fff; }
+  .acc-plan { font-size: 11px; color: rgba(255,255,255,0.32); }
+  #new-acc-btn {
+    margin-top: 10px; display: flex; align-items: center; gap: 8px; padding: 9px 10px;
+    border-radius: 10px; border: 1px dashed rgba(255,255,255,0.14); background: transparent;
+    cursor: pointer; color: rgba(255,255,255,0.38); font-size: 13px; font-family: inherit; width: 100%;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #new-acc-btn:hover { border-color: rgba(255,255,255,0.28); color: rgba(255,255,255,0.6); }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-foot-btn { padding: 7px 10px; border-radius: 8px; border: none; background: transparent; color: rgba(255,255,255,0.3); font-size: 12px; cursor: pointer; font-family: inherit; text-align: left; width: 100%; transition: color 0.15s; }
+  .sidebar-foot-btn:hover { color: rgba(255,255,255,0.6); }
 
-const MOCK_ACCOUNTS = [
-  { id: 1, name: "AgenceNova", plan: "Pro", revenue: 12400, logo: "AN", color: PALETTE.indigo },
-  { id: 2, name: "BoostMedia", plan: "Starter", revenue: 5200, logo: "BM", color: PALETTE.emerald },
-  { id: 3, name: "Clikify", plan: "Pro", revenue: 9800, logo: "CK", color: PALETTE.rose },
+  /* MAIN */
+  #main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; }
+
+  /* TOPBAR */
+  .topbar { padding: 26px 32px 0; }
+  .topbar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 23px; font-weight: 700; letter-spacing: -0.4px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .range-btns { display: flex; gap: 6px; }
+  .range-btn { padding: 7px 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--white); color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .range-btn.active { border-color: var(--indigo); background: var(--indigo-light); color: var(--indigo); }
+
+  /* TABS */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+  .tab-btn { padding: 10px 18px; border: none; background: transparent; border-bottom: 2.5px solid transparent; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .tab-btn.active { border-bottom-color: var(--indigo); color: var(--indigo); font-weight: 600; }
+
+  /* CONTENT */
+  .content { padding: 0 32px 48px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 20px; }
+  .kpi-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; margin-bottom: 20px; }
+
+  /* KPI CARD */
+  .kpi-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .kpi-label { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-label-text { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .kpi-icon { font-size: 17px; }
+  .kpi-value-row { display: flex; align-items: baseline; gap: 5px; }
+  .kpi-value { font-size: 27px; font-weight: 700; letter-spacing: -0.5px; }
+  .kpi-unit { font-size: 14px; color: var(--muted); }
+  .kpi-footer { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-delta { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .kpi-delta.pos { background: var(--emerald-light); color: var(--emerald); }
+  .kpi-delta.neg { background: var(--rose-light); color: var(--rose); }
+  .sparkline { display: flex; align-items: flex-end; gap: 2px; height: 32px; }
+  .spark-bar { width: 4px; border-radius: 2px; transition: height 0.4s ease; }
+
+  /* CHART CARD */
+  .chart-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px 14px; margin-bottom: 16px; }
+  .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-legend { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+
+  /* NPS BARS */
+  .nps-bar-row { margin-bottom: 14px; }
+  .nps-bar-label { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .nps-bar-track { height: 8px; border-radius: 8px; background: var(--border); }
+  .nps-bar-fill { height: 100%; border-radius: 8px; transition: width 0.6s ease; }
+
+  /* GRID 2COL */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* MODAL */
+  #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,14,26,0.55); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+  #modal-overlay.open { display: flex; }
+  #modal-box { background: var(--white); border-radius: 20px; padding: 34px; width: 460px; max-width: 95vw; box-shadow: 0 20px 60px rgba(79,70,229,0.18); }
+  #modal-box h2 { font-size: 19px; font-weight: 700; margin-bottom: 22px; }
+  .form-group { margin-bottom: 15px; }
+  .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .form-group input, .form-group select { width: 100%; padding: 10px 13px; border-radius: 10px; border: 1px solid var(--border); font-size: 14px; font-family: inherit; color: var(--text); outline: none; transition: border-color 0.15s; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--indigo); }
+  .btn-primary { width: 100%; padding: 12px 0; border-radius: 10px; background: var(--indigo); color: #fff; font-size: 15px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-cancel { width: 100%; padding: 10px 0; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 14px; cursor: pointer; font-family: inherit; margin-top: 10px; transition: background 0.15s; }
+  .btn-cancel:hover { background: var(--surface); }
+
+  /* BADGE */
+  .plan-badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: var(--indigo-light); color: var(--indigo); }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 80px 20px; color: var(--muted); font-size: 15px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="logo">
+    <div class="logo-icon">T</div>
+    <span class="logo-name">Trackr</span>
+  </div>
+  <div class="sidebar-section">Comptes clients</div>
+  <div id="acc-list"></div>
+  <button id="new-acc-btn" onclick="openModal()">
+    <span style="font-size:18px;line-height:1">+</span> Nouveau compte
+  </button>
+  <div class="sidebar-spacer"></div>
+  <button class="sidebar-foot-btn">⚙ Paramètres</button>
+  <button class="sidebar-foot-btn">📖 Documentation</button>
+  <button class="sidebar-foot-btn">↩ Déconnexion</button>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="page-title" id="acc-title">—</div>
+        <div class="page-sub" id="acc-sub">Tableau de bord analytics</div>
+      </div>
+      <div class="range-btns">
+        <button class="range-btn" data-range="3" onclick="setRange(3)">3 mois</button>
+        <button class="range-btn active" data-range="6" onclick="setRange(6)">6 mois</button>
+        <button class="range-btn" data-range="12" onclick="setRange(12)">12 mois</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="apercu" onclick="setTab('apercu')">Aperçu</button>
+      <button class="tab-btn" data-tab="revenue" onclick="setTab('revenue')">Revenus</button>
+      <button class="tab-btn" data-tab="acquisition" onclick="setTab('acquisition')">Acquisition</button>
+      <button class="tab-btn" data-tab="retention" onclick="setTab('retention')">Rétention</button>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="closeModalOutside(event)">
+  <div id="modal-box">
+    <h2>Nouveau compte client</h2>
+    <div class="form-group"><label>Nom de l'agence / client</label><input id="f-name" placeholder="AgenceNova..."></div>
+    <div class="form-group"><label>Email de contact</label><input id="f-email" type="email" placeholder="contact@agence.com"></div>
+    <div class="form-group"><label>Budget mensuel (€)</label><input id="f-budget" type="number" placeholder="5000"></div>
+    <div class="form-group">
+      <label>Formule</label>
+      <select id="f-plan">
+        <option>Starter</option><option>Pro</option><option>Enterprise</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="createAccount()">Créer le compte</button>
+    <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+  </div>
+</div>
+
+<script>
+const MONTHS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+const COLORS = ["#4F46E5","#10B981","#F43F5E","#F59E0B","#0EA5E9","#8B5CF6"];
+
+let accounts = [
+  { id:1, name:"AgenceNova", plan:"Pro", logo:"AN", color:"#4F46E5" },
+  { id:2, name:"BoostMedia", plan:"Starter", logo:"BM", color:"#10B981" },
+  { id:3, name:"Clikify", plan:"Pro", logo:"CK", color:"#F43F5E" },
 ];
+let metrics = {};
+let selectedId = 1;
+let currentRange = 6;
+let currentTab = "apercu";
+let charts = {};
 
-const generateSeries = (base, len = 12, noise = 0.25) =>
-  Array.from({ length: len }, (_, i) => Math.max(0, Math.round(base * (1 + (Math.random() - 0.5) * noise + i * 0.03))));
-
-const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-
-const DEFAULT_METRICS = () => ({
-  calls: generateSeries(120),
-  revenue: generateSeries(18000),
-  cac: generateSeries(240, 12, 0.3),
-  ltv: generateSeries(1400),
-  nps: generateSeries(62, 12, 0.15),
-  leads: generateSeries(340),
-  conversion: generateSeries(18, 12, 0.2),
-  churn: generateSeries(4, 12, 0.3),
-});
-
-const sum = (arr) => arr.reduce((a, b) => a + b, 0);
-const avg = (arr) => Math.round(sum(arr) / arr.length);
-const last = (arr) => arr[arr.length - 1];
-const pct = (a, b) => (b === 0 ? 0 : Math.round(((a - b) / b) * 100));
-
-function MiniSparkline({ data, color, width = 120, height = 36 }) {
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * width},${height - ((v - min) / range) * height}`).join(" ");
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: "visible" }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={(data.length - 1) / (data.length - 1) * width} cy={height - ((last(data) - min) / range) * height} r="3" fill={color} />
-    </svg>
-  );
+function genSeries(base, len=12, noise=0.25) {
+  return Array.from({length:len}, (_,i) => Math.max(0, Math.round(base*(1+(Math.random()-0.5)*noise+i*0.03))));
 }
-
-function BarChart({ data, labels, color, height = 160 }) {
-  const max = Math.max(...data);
-  return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height, paddingBottom: 20, position: "relative" }}>
-      {data.map((v, i) => (
-        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-          <div style={{
-            width: "100%", borderRadius: "4px 4px 0 0",
-            height: `${(v / max) * (height - 28)}px`,
-            background: i === data.length - 1 ? color : color + "66",
-            transition: "height 0.5s cubic-bezier(.4,0,.2,1)",
-          }} />
-          <span style={{ fontSize: 10, color: PALETTE.muted, textAlign: "center" }}>{labels[i]}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function LineChart({ datasets, labels, height = 180 }) {
-  const allVals = datasets.flatMap(d => d.data);
-  const min = Math.min(...allVals);
-  const max = Math.max(...allVals);
-  const range = max - min || 1;
-  const W = 560, H = height;
-  const px = (i) => (i / (labels.length - 1)) * (W - 40) + 20;
-  const py = (v) => H - 20 - ((v - min) / range) * (H - 30);
-  return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible" }}>
-      {[0, 0.33, 0.66, 1].map((t, i) => (
-        <line key={i} x1={20} x2={W - 20} y1={py(min + t * range)} y2={py(min + t * range)} stroke={PALETTE.border} strokeWidth={0.5} />
-      ))}
-      {datasets.map((ds, di) => {
-        const pts = ds.data.map((v, i) => `${px(i)},${py(v)}`).join(" ");
-        return (
-          <g key={di}>
-            <polyline points={pts} fill="none" stroke={ds.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            {ds.data.map((v, i) => (
-              <circle key={i} cx={px(i)} cy={py(v)} r={3} fill={ds.color} />
-            ))}
-          </g>
-        );
-      })}
-      {labels.map((l, i) => (
-        <text key={i} x={px(i)} y={H - 4} textAnchor="middle" fontSize={10} fill={PALETTE.muted}>{l}</text>
-      ))}
-    </svg>
-  );
-}
-
-function KpiCard({ label, value, unit, prev, color, spark, icon }) {
-  const delta = prev != null ? pct(value, prev) : null;
-  return (
-    <div style={{
-      background: PALETTE.white, border: `1px solid ${PALETTE.border}`,
-      borderRadius: 14, padding: "18px 20px",
-      display: "flex", flexDirection: "column", gap: 8,
-      boxShadow: "0 1px 4px rgba(79,70,229,0.06)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 13, color: PALETTE.muted, fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-        <span style={{ fontSize: 28, fontWeight: 700, color: PALETTE.text, letterSpacing: "-0.5px" }}>
-          {typeof value === "number" ? value.toLocaleString("fr-FR") : value}
-        </span>
-        {unit && <span style={{ fontSize: 14, color: PALETTE.muted }}>{unit}</span>}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {delta != null && (
-          <span style={{
-            fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20,
-            background: delta >= 0 ? PALETTE.emeraldLight : PALETTE.roseLight,
-            color: delta >= 0 ? PALETTE.emerald : PALETTE.rose,
-          }}>
-            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
-          </span>
-        )}
-        {spark && <MiniSparkline data={spark} color={color || PALETTE.indigo} />}
-      </div>
-    </div>
-  );
-}
-
-function Modal({ onClose, children }) {
-  return (
-    <div onClick={onClose} style={{
-      position: "fixed", inset: 0, background: "rgba(15,14,26,0.55)",
-      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
-      backdropFilter: "blur(2px)",
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: PALETTE.white, borderRadius: 20, padding: 36, width: 480,
-        boxShadow: "0 20px 60px rgba(79,70,229,0.18)",
-      }}>
-        {children}
-        <button onClick={onClose} style={{
-          marginTop: 16, width: "100%", padding: "10px 0", borderRadius: 10,
-          border: `1px solid ${PALETTE.border}`, background: "transparent",
-          color: PALETTE.muted, cursor: "pointer", fontSize: 14,
-        }}>Annuler</button>
-      </div>
-    </div>
-  );
-}
-
-function CreateAccountModal({ onClose, onCreate }) {
-  const [form, setForm] = useState({ name: "", email: "", plan: "Starter", budget: "" });
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const handle = () => {
-    if (!form.name || !form.email) return;
-    onCreate({ ...form, id: Date.now(), revenue: 0, logo: form.name.slice(0, 2).toUpperCase(), color: PALETTE.indigo });
-    onClose();
+function getMetrics(id) {
+  if (!metrics[id]) metrics[id] = {
+    calls: genSeries(120), revenue: genSeries(18000), cac: genSeries(240,12,0.3),
+    ltv: genSeries(1400), nps: genSeries(62,12,0.15), leads: genSeries(340),
+    conversion: genSeries(18,12,0.2), churn: genSeries(4,12,0.3),
   };
-  return (
-    <Modal onClose={onClose}>
-      <h2 style={{ margin: "0 0 24px", fontSize: 20, fontWeight: 700, color: PALETTE.text }}>Nouveau compte client</h2>
-      {[
-        { label: "Nom de l'agence / client", key: "name", placeholder: "AgenceNova..." },
-        { label: "Email de contact", key: "email", placeholder: "contact@agence.com" },
-        { label: "Budget mensuel (€)", key: "budget", placeholder: "5000" },
-      ].map(f => (
-        <div key={f.key} style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", fontSize: 13, color: PALETTE.muted, marginBottom: 6 }}>{f.label}</label>
-          <input
-            value={form[f.key]} onChange={e => set(f.key, e.target.value)}
-            placeholder={f.placeholder}
-            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${PALETTE.border}`, fontSize: 14, color: PALETTE.text, outline: "none", boxSizing: "border-box" }}
-          />
-        </div>
-      ))}
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ display: "block", fontSize: 13, color: PALETTE.muted, marginBottom: 6 }}>Formule</label>
-        <select value={form.plan} onChange={e => set("plan", e.target.value)}
-          style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${PALETTE.border}`, fontSize: 14, color: PALETTE.text }}>
-          <option>Starter</option>
-          <option>Pro</option>
-          <option>Enterprise</option>
-        </select>
-      </div>
-      <button onClick={handle} style={{
-        width: "100%", padding: "12px 0", borderRadius: 10,
-        background: PALETTE.indigo, color: "#fff", fontSize: 15, fontWeight: 600,
-        border: "none", cursor: "pointer",
-      }}>Créer le compte</button>
-    </Modal>
-  );
+  return metrics[id];
+}
+function sum(a){return a.reduce((s,v)=>s+v,0);}
+function avg(a){return Math.round(sum(a)/a.length);}
+function last(a){return a[a.length-1];}
+function pct(a,b){return b===0?0:Math.round((a-b)/b*100);}
+function slice(arr){return arr.slice(-currentRange);}
+function labs(){return MONTHS.slice(-currentRange);}
+function fmt(n){return typeof n==="number"?n.toLocaleString("fr-FR"):n;}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try{c.destroy();}catch(e){} });
+  charts = {};
 }
 
-function Sidebar({ accounts, selected, onSelect, onNew }) {
-  return (
-    <div style={{
-      width: 240, background: PALETTE.dark, height: "100vh", position: "sticky", top: 0,
-      display: "flex", flexDirection: "column", padding: "28px 16px", gap: 4, flexShrink: 0,
-      borderRight: `1px solid rgba(255,255,255,0.06)`,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, paddingLeft: 8 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: PALETTE.indigo, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#fff", fontSize: 16, fontWeight: 700 }}>T</span>
-        </div>
-        <span style={{ color: "#fff", fontSize: 18, fontWeight: 700, letterSpacing: "-0.3px" }}>Trackr</span>
-      </div>
-      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", paddingLeft: 8, marginBottom: 8 }}>Comptes clients</span>
-      {accounts.map(acc => (
-        <button key={acc.id} onClick={() => onSelect(acc.id)} style={{
-          display: "flex", alignItems: "center", gap: 10, padding: "10px 10px",
-          borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left",
-          background: selected === acc.id ? "rgba(79,70,229,0.22)" : "transparent",
-          transition: "background 0.15s",
-        }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: acc.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>{acc.logo}</span>
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: selected === acc.id ? "#fff" : "rgba(255,255,255,0.75)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{acc.name}</p>
-            <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{acc.plan}</p>
-          </div>
-        </button>
-      ))}
-      <button onClick={onNew} style={{
-        marginTop: 12, display: "flex", alignItems: "center", gap: 8, padding: "10px 10px",
-        borderRadius: 10, border: "1px dashed rgba(255,255,255,0.15)", background: "transparent",
-        cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: 13,
-      }}>
-        <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Nouveau compte
-      </button>
-      <div style={{ flex: 1 }} />
-      {["Paramètres", "Documentation", "Déconnexion"].map(l => (
-        <button key={l} style={{ padding: "8px 10px", borderRadius: 8, border: "none", background: "transparent", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>{l}</button>
-      ))}
-    </div>
-  );
+function sparkHTML(data, color) {
+  const max = Math.max(...data); const min = Math.min(...data); const range = max-min||1;
+  return data.map(v=>`<div class="spark-bar" style="height:${Math.max(3,Math.round((v-min)/range*28))}px;background:${color}88"></div>`).join('');
 }
 
-function Dashboard({ account }) {
-  const m = useRef(DEFAULT_METRICS()).current;
-  const [range, setRange] = useState(6);
-  const [tab, setTab] = useState("apercu");
+function kpiCard(label, value, unit, prevVal, color, sparkData, icon) {
+  const d = prevVal!=null?pct(value,prevVal):null;
+  const deltaHtml = d!=null?`<span class="kpi-delta ${d>=0?'pos':'neg'}">${d>=0?'▲':'▼'} ${Math.abs(d)}%</span>`:'<span></span>';
+  const sp = sparkData?`<div class="sparkline">${sparkHTML(sparkData,color)}</div>`:'';
+  return `<div class="kpi-card">
+    <div class="kpi-label"><span class="kpi-label-text">${label}</span><span class="kpi-icon">${icon}</span></div>
+    <div class="kpi-value-row"><span class="kpi-value">${fmt(value)}</span>${unit?`<span class="kpi-unit">${unit}</span>`:''}</div>
+    <div class="kpi-footer">${deltaHtml}${sp}</div>
+  </div>`;
+}
 
-  const slice = (arr) => arr.slice(-range);
-  const labs = MONTHS.slice(-range);
+function chartCard(id, title, legendItems='', height=180) {
+  return `<div class="chart-card">
+    <div class="chart-title">${title}</div>
+    <div class="chart-wrap" style="height:${height}px"><canvas id="${id}" role="img" aria-label="${title}"></canvas></div>
+    ${legendItems?`<div class="chart-legend">${legendItems}</div>`:''}
+  </div>`;
+}
+
+function legendItem(color,label){return `<span class="legend-item"><span class="legend-dot" style="background:${color}"></span>${label}</span>`;}
+
+function renderTab() {
+  destroyCharts();
+  const m = getMetrics(selectedId);
+  const c = {
+    calls: slice(m.calls), revenue: slice(m.revenue), cac: slice(m.cac),
+    ltv: slice(m.ltv), nps: slice(m.nps), leads: slice(m.leads),
+    conversion: slice(m.conversion), churn: slice(m.churn),
+  };
+  const L = labs();
+  let html = '';
 
   const kpis = [
-    { label: "Appels qualifiés", value: sum(slice(m.calls)), prev: sum(m.calls.slice(-range * 2, -range)), unit: "appels", icon: "📞", color: PALETTE.indigo, spark: slice(m.calls) },
-    { label: "CA généré", value: sum(slice(m.revenue)), prev: sum(m.revenue.slice(-range * 2, -range)), unit: "€", icon: "💰", color: PALETTE.emerald, spark: slice(m.revenue) },
-    { label: "LTV / CAC", value: (avg(slice(m.ltv)) / avg(slice(m.cac))).toFixed(1), prev: null, unit: "x", icon: "📊", color: PALETTE.sky, spark: slice(m.ltv).map((v, i) => v / slice(m.cac)[i]) },
-    { label: "NPS moyen", value: avg(slice(m.nps)), prev: avg(m.nps.slice(-range * 2, -range)), unit: "/100", icon: "⭐", color: PALETTE.amber, spark: slice(m.nps) },
-    { label: "CAC", value: avg(slice(m.cac)), prev: avg(m.cac.slice(-range * 2, -range)), unit: "€", icon: "🎯", color: PALETTE.rose, spark: slice(m.cac) },
-    { label: "LTV", value: avg(slice(m.ltv)), prev: avg(m.ltv.slice(-range * 2, -range)), unit: "€", icon: "🔁", color: PALETTE.sky, spark: slice(m.ltv) },
-    { label: "Leads générés", value: sum(slice(m.leads)), prev: sum(m.leads.slice(-range * 2, -range)), unit: "leads", icon: "🔥", color: PALETTE.indigo, spark: slice(m.leads) },
-    { label: "Taux de conversion", value: avg(slice(m.conversion)), prev: avg(m.conversion.slice(-range * 2, -range)), unit: "%", icon: "✅", color: PALETTE.emerald, spark: slice(m.conversion) },
-    { label: "Churn rate", value: avg(slice(m.churn)), prev: avg(m.churn.slice(-range * 2, -range)), unit: "%", icon: "📉", color: PALETTE.rose, spark: slice(m.churn) },
+    {label:"Appels qualifiés",v:sum(c.calls),prev:sum(m.calls.slice(-currentRange*2,-currentRange)),unit:"appels",icon:"📞",color:"#4F46E5",sp:c.calls},
+    {label:"CA généré",v:sum(c.revenue),prev:sum(m.revenue.slice(-currentRange*2,-currentRange)),unit:"€",icon:"💰",color:"#10B981",sp:c.revenue},
+    {label:"LTV / CAC",v:+(avg(c.ltv)/avg(c.cac)).toFixed(1),prev:null,unit:"x",icon:"📊",color:"#0EA5E9",sp:c.ltv.map((v,i)=>v/c.cac[i])},
+    {label:"NPS moyen",v:avg(c.nps),prev:avg(m.nps.slice(-currentRange*2,-currentRange)),unit:"/100",icon:"⭐",color:"#F59E0B",sp:c.nps},
+    {label:"CAC",v:avg(c.cac),prev:avg(m.cac.slice(-currentRange*2,-currentRange)),unit:"€",icon:"🎯",color:"#F43F5E",sp:c.cac},
+    {label:"LTV",v:avg(c.ltv),prev:avg(m.ltv.slice(-currentRange*2,-currentRange)),unit:"€",icon:"🔁",color:"#0EA5E9",sp:c.ltv},
+    {label:"Leads générés",v:sum(c.leads),prev:sum(m.leads.slice(-currentRange*2,-currentRange)),unit:"leads",icon:"🔥",color:"#4F46E5",sp:c.leads},
+    {label:"Taux de conversion",v:avg(c.conversion),prev:avg(m.conversion.slice(-currentRange*2,-currentRange)),unit:"%",icon:"✅",color:"#10B981",sp:c.conversion},
+    {label:"Churn rate",v:avg(c.churn),prev:avg(m.churn.slice(-currentRange*2,-currentRange)),unit:"%",icon:"📉",color:"#F43F5E",sp:c.churn},
   ];
 
-  const tabs = [
-    { key: "apercu", label: "Aperçu" },
-    { key: "revenue", label: "Revenus" },
-    { key: "acquisition", label: "Acquisition" },
-    { key: "retention", label: "Rétention" },
-  ];
+  if (currentTab==='apercu') {
+    html += `<div class="kpi-grid">${kpis.slice(0,3).map(k=>kpiCard(k.label,k.v,k.unit,k.prev,k.color,k.sp,k.icon)).join('')}</div>`;
+    html += `<div class="kpi-grid">${kpis.slice(3,6).map(k=>kpiCard(k.label,k.v,k.unit,k.prev,k.color,k.sp,k.icon)).join('')}</div>`;
+    html += chartCard('ch-main',`Revenus vs CAC — ${currentRange} derniers mois`,
+      legendItem('#10B981','CA (k€)')+legendItem('#F43F5E','CAC (€)'), 200);
+  }
+  else if (currentTab==='revenue') {
+    html += `<div class="kpi-grid-2">${[kpis[1],kpis[5]].map(k=>kpiCard(k.label,k.v,k.unit,k.prev,k.color,k.sp,k.icon)).join('')}</div>`;
+    html += chartCard('ch-rev','Revenus mensuels (€)','',190);
+    html += chartCard('ch-ltvcac','LTV vs CAC',legendItem('#0EA5E9','LTV (€)')+legendItem('#F43F5E','CAC (€)'),190);
+  }
+  else if (currentTab==='acquisition') {
+    html += `<div class="kpi-grid">${[kpis[0],kpis[6],kpis[7]].map(k=>kpiCard(k.label,k.v,k.unit,k.prev,k.color,k.sp,k.icon)).join('')}</div>`;
+    html += chartCard('ch-leads','Leads & Appels',legendItem('#4F46E5','Leads')+legendItem('#818CF8','Appels ×3'),190);
+    html += chartCard('ch-conv','Taux de conversion (%)','',160);
+  }
+  else if (currentTab==='retention') {
+    html += `<div class="kpi-grid-2">${[kpis[3],kpis[8]].map(k=>kpiCard(k.label,k.v,k.unit,k.prev,k.color,k.sp,k.icon)).join('')}</div>`;
+    html += `<div class="grid-2">
+      ${chartCard('ch-nps','NPS mensuel','',160)}
+      ${chartCard('ch-churn','Taux de churn (%)','',160)}
+    </div>`;
+    html += `<div class="chart-card" style="margin-top:16px">
+      <div class="chart-title">Score NPS détaillé</div>
+      ${[
+        {label:'Promoteurs (9-10)',pct:52,color:'#10B981'},
+        {label:'Passifs (7-8)',pct:28,color:'#F59E0B'},
+        {label:'Détracteurs (0-6)',pct:20,color:'#F43F5E'},
+      ].map(r=>`<div class="nps-bar-row">
+        <div class="nps-bar-label"><span style="font-size:13px;color:var(--muted)">${r.label}</span><span style="font-size:13px;font-weight:600">${r.pct}%</span></div>
+        <div class="nps-bar-track"><div class="nps-bar-fill" style="width:${r.pct}%;background:${r.color}"></div></div>
+      </div>`).join('')}
+    </div>`;
+  }
 
-  return (
-    <div style={{ flex: 1, overflowY: "auto", background: PALETTE.surface, minHeight: "100vh" }}>
-      <div style={{ padding: "28px 32px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: PALETTE.text, letterSpacing: "-0.4px" }}>{account.name}</h1>
-            <span style={{ fontSize: 13, color: PALETTE.muted }}>Formule {account.plan} · Tableau de bord analytics</span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {[3, 6, 12].map(r => (
-              <button key={r} onClick={() => setRange(r)} style={{
-                padding: "7px 16px", borderRadius: 8, border: `1px solid ${range === r ? PALETTE.indigo : PALETTE.border}`,
-                background: range === r ? PALETTE.indigoLight : PALETTE.white,
-                color: range === r ? PALETTE.indigo : PALETTE.muted,
-                fontSize: 13, fontWeight: 500, cursor: "pointer",
-              }}>{r === 12 ? "12 mois" : `${r} mois`}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${PALETTE.border}`, marginBottom: 28 }}>
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: "10px 18px", border: "none", background: "transparent",
-              borderBottom: tab === t.key ? `2px solid ${PALETTE.indigo}` : "2px solid transparent",
-              color: tab === t.key ? PALETTE.indigo : PALETTE.muted,
-              fontWeight: tab === t.key ? 600 : 400, fontSize: 14, cursor: "pointer",
-            }}>{t.label}</button>
-          ))}
-        </div>
-      </div>
+  document.getElementById('content').innerHTML = html;
 
-      <div style={{ padding: "0 32px 40px" }}>
-        {tab === "apercu" && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 28 }}>
-              {kpis.slice(0, 3).map(k => <KpiCard key={k.label} {...k} />)}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 28 }}>
-              {kpis.slice(3, 6).map(k => <KpiCard key={k.label} {...k} />)}
-            </div>
-            <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px 24px 16px", border: `1px solid ${PALETTE.border}`, marginBottom: 20 }}>
-              <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>Revenus vs CAC — {range} derniers mois</h3>
-              <LineChart
-                datasets={[
-                  { data: slice(m.revenue).map(v => Math.round(v / 1000)), color: PALETTE.emerald },
-                  { data: slice(m.cac), color: PALETTE.rose },
-                ]}
-                labels={labs}
-              />
-              <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: PALETTE.muted }}>
-                  <span style={{ width: 10, height: 3, borderRadius: 2, background: PALETTE.emerald, display: "inline-block" }} />CA (k€)
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: PALETTE.muted }}>
-                  <span style={{ width: 10, height: 3, borderRadius: 2, background: PALETTE.rose, display: "inline-block" }} />CAC (€)
-                </span>
-              </div>
-            </div>
-          </>
-        )}
+  const baseOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#9CA3AF'}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},color:'#9CA3AF'}}},
+    animation:{duration:600},
+  };
 
-        {tab === "revenue" && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
-              {[kpis[1], kpis[5]].map(k => <KpiCard key={k.label} {...k} />)}
-            </div>
-            <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px 24px 12px", border: `1px solid ${PALETTE.border}`, marginBottom: 20 }}>
-              <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>Revenus mensuels (€)</h3>
-              <BarChart data={slice(m.revenue)} labels={labs} color={PALETTE.emerald} height={180} />
-            </div>
-            <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px", border: `1px solid ${PALETTE.border}` }}>
-              <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>LTV vs CAC</h3>
-              <LineChart
-                datasets={[
-                  { data: slice(m.ltv), color: PALETTE.sky },
-                  { data: slice(m.cac), color: PALETTE.rose },
-                ]}
-                labels={labs}
-              />
-            </div>
-          </>
-        )}
-
-        {tab === "acquisition" && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
-              {[kpis[0], kpis[6], kpis[7]].map(k => <KpiCard key={k.label} {...k} />)}
-            </div>
-            <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px 24px 12px", border: `1px solid ${PALETTE.border}`, marginBottom: 20 }}>
-              <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>Leads & Appels</h3>
-              <LineChart
-                datasets={[
-                  { data: slice(m.leads), color: PALETTE.indigo },
-                  { data: slice(m.calls).map(v => v * 3), color: PALETTE.indigoMid },
-                ]}
-                labels={labs}
-              />
-            </div>
-            <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px 24px 12px", border: `1px solid ${PALETTE.border}` }}>
-              <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>Taux de conversion (%)</h3>
-              <BarChart data={slice(m.conversion)} labels={labs} color={PALETTE.indigo} height={140} />
-            </div>
-          </>
-        )}
-
-        {tab === "retention" && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
-              {[kpis[3], kpis[8]].map(k => <KpiCard key={k.label} {...k} />)}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px 24px 12px", border: `1px solid ${PALETTE.border}` }}>
-                <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>NPS mensuel</h3>
-                <BarChart data={slice(m.nps)} labels={labs} color={PALETTE.amber} height={140} />
-              </div>
-              <div style={{ background: PALETTE.white, borderRadius: 16, padding: "24px 24px 12px", border: `1px solid ${PALETTE.border}` }}>
-                <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>Taux de churn (%)</h3>
-                <BarChart data={slice(m.churn)} labels={labs} color={PALETTE.rose} height={140} />
-              </div>
-            </div>
-            <div style={{ background: PALETTE.white, borderRadius: 16, padding: 24, border: `1px solid ${PALETTE.border}`, marginTop: 16 }}>
-              <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: PALETTE.text }}>Score NPS détaillé</h3>
-              {[
-                { label: "Promoteurs (9-10)", pct: 52, color: PALETTE.emerald },
-                { label: "Passifs (7-8)", pct: 28, color: PALETTE.amber },
-                { label: "Détracteurs (0-6)", pct: 20, color: PALETTE.rose },
-              ].map(row => (
-                <div key={row.label} style={{ marginBottom: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: PALETTE.muted }}>{row.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: PALETTE.text }}>{row.pct}%</span>
-                  </div>
-                  <div style={{ height: 8, borderRadius: 8, background: PALETTE.border }}>
-                    <div style={{ height: "100%", borderRadius: 8, width: `${row.pct}%`, background: row.color, transition: "width 0.6s ease" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
+  if (currentTab==='apercu') {
+    charts.main = new Chart(document.getElementById('ch-main'),{
+      type:'line',
+      data:{labels:L,datasets:[
+        {label:'CA (k€)',data:c.revenue.map(v=>Math.round(v/1000)),borderColor:'#10B981',backgroundColor:'transparent',tension:0.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#10B981'},
+        {label:'CAC (€)',data:c.cac,borderColor:'#F43F5E',backgroundColor:'transparent',tension:0.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#F43F5E',borderDash:[5,3]},
+      ]},
+      options:{...baseOpts},
+    });
+  }
+  if (currentTab==='revenue') {
+    charts.rev = new Chart(document.getElementById('ch-rev'),{
+      type:'bar',
+      data:{labels:L,datasets:[{label:'Revenus',data:c.revenue,backgroundColor:c.revenue.map((_,i)=>i===c.revenue.length-1?'#10B981':'#10B98166'),borderRadius:5}]},
+      options:{...baseOpts},
+    });
+    charts.ltvcac = new Chart(document.getElementById('ch-ltvcac'),{
+      type:'line',
+      data:{labels:L,datasets:[
+        {label:'LTV',data:c.ltv,borderColor:'#0EA5E9',tension:0.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#0EA5E9',backgroundColor:'transparent'},
+        {label:'CAC',data:c.cac,borderColor:'#F43F5E',tension:0.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#F43F5E',backgroundColor:'transparent',borderDash:[5,3]},
+      ]},
+      options:{...baseOpts},
+    });
+  }
+  if (currentTab==='acquisition') {
+    charts.leads = new Chart(document.getElementById('ch-leads'),{
+      type:'line',
+      data:{labels:L,datasets:[
+        {label:'Leads',data:c.leads,borderColor:'#4F46E5',tension:0.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#4F46E5',backgroundColor:'transparent'},
+        {label:'Appels',data:c.calls.map(v=>v*3),borderColor:'#818CF8',tension:0.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#818CF8',backgroundColor:'transparent',borderDash:[4,3]},
+      ]},
+      options:{...baseOpts},
+    });
+    charts.conv = new Chart(document.getElementById('ch-conv'),{
+      type:'bar',
+      data:{labels:L,datasets:[{label:'Conversion %',data:c.conversion,backgroundColor:c.conversion.map((_,i)=>i===c.conversion.length-1?'#4F46E5':'#4F46E566'),borderRadius:5}]},
+      options:{...baseOpts},
+    });
+  }
+  if (currentTab==='retention') {
+    charts.nps = new Chart(document.getElementById('ch-nps'),{
+      type:'bar',
+      data:{labels:L,datasets:[{label:'NPS',data:c.nps,backgroundColor:c.nps.map((_,i)=>i===c.nps.length-1?'#F59E0B':'#F59E0B66'),borderRadius:5}]},
+      options:{...baseOpts},
+    });
+    charts.churn = new Chart(document.getElementById('ch-churn'),{
+      type:'bar',
+      data:{labels:L,datasets:[{label:'Churn %',data:c.churn,backgroundColor:c.churn.map((_,i)=>i===c.churn.length-1?'#F43F5E':'#F43F5E66'),borderRadius:5}]},
+      options:{...baseOpts},
+    });
+  }
 }
 
-export default function App() {
-  const [accounts, setAccounts] = useState(MOCK_ACCOUNTS);
-  const [selected, setSelected] = useState(1);
-  const [showCreate, setShowCreate] = useState(false);
-
-  const account = accounts.find(a => a.id === selected) || accounts[0];
-
-  return (
-    <div style={{ display: "flex", fontFamily: "'Helvetica Neue', Arial, sans-serif", minHeight: "100vh", background: PALETTE.surface }}>
-      <Sidebar
-        accounts={accounts}
-        selected={selected}
-        onSelect={setSelected}
-        onNew={() => setShowCreate(true)}
-      />
-      <Dashboard account={account} key={selected} />
-      {showCreate && (
-        <CreateAccountModal
-          onClose={() => setShowCreate(false)}
-          onCreate={acc => {
-            setAccounts(prev => [...prev, acc]);
-            setSelected(acc.id);
-          }}
-        />
-      )}
-    </div>
-  );
+function renderSidebar() {
+  document.getElementById('acc-list').innerHTML = accounts.map(a=>`
+    <button class="acc-btn ${a.id===selectedId?'active':''}" onclick="selectAccount(${a.id})">
+      <div class="acc-avatar" style="background:${a.color}">${a.logo}</div>
+      <div style="min-width:0">
+        <div class="acc-name">${a.name}</div>
+        <div class="acc-plan">${a.plan}</div>
+      </div>
+    </button>`).join('');
 }
+
+function renderTopbar() {
+  const acc = accounts.find(a=>a.id===selectedId);
+  document.getElementById('acc-title').textContent = acc?acc.name:'—';
+  document.getElementById('acc-sub').textContent = `Formule ${acc?acc.plan:''} · Tableau de bord analytics`;
+}
+
+function selectAccount(id) {
+  selectedId = id;
+  renderSidebar();
+  renderTopbar();
+  renderTab();
+}
+
+function setRange(r) {
+  currentRange = r;
+  document.querySelectorAll('.range-btn').forEach(b=>b.classList.toggle('active',+b.dataset.range===r));
+  renderTab();
+}
+
+function setTab(t) {
+  currentTab = t;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  renderTab();
+}
+
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e) { if(e.target===document.getElementById('modal-overlay'))closeModal(); }
+
+function createAccount() {
+  const name = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const plan = document.getElementById('f-plan').value;
+  if(!name||!email){alert('Merci de remplir le nom et l\'email.');return;}
+  const id = Date.now();
+  const logo = name.slice(0,2).toUpperCase();
+  const color = COLORS[accounts.length % COLORS.length];
+  accounts.push({id,name,plan,logo,color});
+  closeModal();
+  document.getElementById('f-name').value='';
+  document.getElementById('f-email').value='';
+  document.getElementById('f-budget').value='';
+  selectAccount(id);
+}
+
+// INIT
+renderSidebar();
+renderTopbar();
+renderTab();
+</script>
+</body>
+</html>
